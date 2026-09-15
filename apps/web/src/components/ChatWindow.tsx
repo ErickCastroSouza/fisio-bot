@@ -28,6 +28,10 @@ function ChatWindow({
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
 
+  /*
+   * Carrega as mensagens sempre que
+   * uma nova conversa é selecionada.
+   */
   useEffect(() => {
     if (!conversation) {
       setMessages([])
@@ -43,14 +47,22 @@ function ChatWindow({
         )
 
         if (!response.ok) {
-          throw new Error('Erro ao buscar mensagens')
+          throw new Error(
+            'Erro ao buscar mensagens'
+          )
         }
 
-        const data = await response.json()
+        const data: Message[] =
+          await response.json()
 
         setMessages(data)
       } catch (error) {
-        console.error(error)
+        console.error(
+          'Erro ao carregar mensagens:',
+          error
+        )
+
+        setMessages([])
       } finally {
         setLoading(false)
       }
@@ -59,58 +71,89 @@ function ChatWindow({
     loadMessages()
   }, [conversation])
 
-const handleSend = async () => {
-  if (!input.trim() || !conversation || sending) {
-    return
-  }
+  /*
+   * Envia uma mensagem para o backend.
+   *
+   * O backend:
+   * 1. Salva a mensagem do paciente
+   * 2. Processa a resposta do bot
+   * 3. Salva a resposta do bot
+   * 4. Retorna as duas mensagens
+   */
+  const handleSend = async () => {
+    if (
+      !input.trim() ||
+      !conversation ||
+      sending
+    ) {
+      return
+    }
 
-  const message = input.trim()
+    const message = input.trim()
 
-  setSending(true)
+    setSending(true)
 
-  try {
-    const response = await fetch(
-      `http://localhost:3000/conversations/${conversation.id}/bot`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: message,
-        }),
+    try {
+      const response = await fetch(
+        `http://localhost:3000/conversations/${conversation.id}/bot`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            content: message,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          'Erro ao enviar mensagem'
+        )
       }
-    )
 
-    if (!response.ok) {
-      throw new Error('Erro ao enviar mensagem')
+      const data = await response.json()
+
+      /*
+       * O backend retorna:
+       *
+       * data.patientMessage
+       * data.botMessage
+       */
+      setMessages((current) => [
+        ...current,
+        data.patientMessage,
+        data.botMessage,
+      ])
+
+      setInput('')
+    } catch (error) {
+      console.error(
+        'Erro ao enviar mensagem:',
+        error
+      )
+    } finally {
+      setSending(false)
     }
-
-    const data = await response.json()
-
-    // Adiciona a mensagem do paciente
-    const patientMessage = {
-      id: crypto.randomUUID(),
-      sender_type: 'patient' as const,
-      content: message,
-      created_at: new Date().toISOString(),
-    }
-
-    // Adiciona a resposta do bot
-    setMessages((current) => [
-      ...current,
-      patientMessage,
-      data.botMessage,
-    ])
-
-    setInput('')
-  } catch (error) {
-    console.error(error)
-  } finally {
-    setSending(false)
   }
-}
 
+  /*
+   * Permite enviar pressionando Enter.
+   */
+  const handleKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      handleSend()
+    }
+  }
+
+  /*
+   * Nenhuma conversa selecionada.
+   */
   if (!conversation) {
     return (
       <section className="flex min-w-0 flex-1 items-center justify-center bg-gray-50">
@@ -129,7 +172,7 @@ const handleSend = async () => {
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-gray-50">
-      {/* Cabeçalho */}
+      {/* Cabeçalho da conversa */}
       <div className="border-b bg-white px-6 py-4">
         <h2 className="font-semibold text-gray-900">
           {conversation.patient.name}
@@ -140,7 +183,7 @@ const handleSend = async () => {
         </p>
       </div>
 
-      {/* Mensagens */}
+      {/* Área das mensagens */}
       <div className="flex-1 space-y-3 overflow-y-auto p-6">
         {loading ? (
           <p className="text-sm text-gray-500">
@@ -153,7 +196,12 @@ const handleSend = async () => {
         ) : (
           messages.map((message) => {
             const isPatient =
-              message.sender_type === 'patient'
+              message.sender_type ===
+              'patient'
+
+            const isTherapist =
+              message.sender_type ===
+              'therapist'
 
             return (
               <div
@@ -168,10 +216,21 @@ const handleSend = async () => {
                   className={`max-w-md rounded-2xl px-4 py-3 ${
                     isPatient
                       ? 'bg-white text-gray-900'
-                      : 'bg-gray-900 text-white'
+                      : isTherapist
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-900 text-white'
                   }`}
                 >
-                  <p className="text-sm">
+                  {/* Identificação da mensagem */}
+                  {!isPatient && (
+                    <p className="mb-1 text-xs font-medium opacity-70">
+                      {isTherapist
+                        ? 'Fisioterapeuta'
+                        : 'FisioBot'}
+                    </p>
+                  )}
+
+                  <p className="whitespace-pre-wrap text-sm">
                     {message.content}
                   </p>
 
@@ -179,15 +238,18 @@ const handleSend = async () => {
                     className={`mt-1 text-xs ${
                       isPatient
                         ? 'text-gray-400'
-                        : 'text-gray-400'
+                        : 'text-gray-300'
                     }`}
                   >
                     {new Date(
                       message.created_at
-                    ).toLocaleTimeString('pt-BR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    ).toLocaleTimeString(
+                      'pt-BR',
+                      {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }
+                    )}
                   </p>
                 </div>
               </div>
@@ -205,21 +267,23 @@ const handleSend = async () => {
             onChange={(event) =>
               setInput(event.target.value)
             }
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                handleSend()
-              }
-            }}
+            onKeyDown={handleKeyDown}
+            disabled={sending}
             placeholder="Digite uma mensagem..."
-            className="flex-1 rounded-lg border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-gray-200"
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100"
           />
 
           <button
+            type="button"
             onClick={handleSend}
-            disabled={sending || !input.trim()}
-            className="rounded-lg bg-gray-900 px-5 py-3 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            disabled={
+              sending || !input.trim()
+            }
+            className="rounded-lg bg-gray-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {sending ? 'Enviando...' : 'Enviar'}
+            {sending
+              ? 'Enviando...'
+              : 'Enviar'}
           </button>
         </div>
       </div>

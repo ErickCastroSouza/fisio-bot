@@ -1,13 +1,5 @@
 import { useEffect, useState } from 'react'
 
-type FAQ = {
-  id: string
-  question: string
-  answer: string
-  active: boolean
-  created_at: string
-}
-
 type ClinicSettings = {
   id: string
 
@@ -44,291 +36,603 @@ type ClinicSettings = {
   lunch_end: string
 
   appointment_duration: number
-
-  created_at: string
-  updated_at: string
 }
 
+type BotSettings = {
+  id: string
+  welcome_message: string
+  menu_instruction: string
+}
+
+type BotMenuOption = {
+  id: string
+  option_number: number
+  title: string
+  response: string
+  active: boolean
+  transfer_to_human: boolean
+}
+
+type FAQ = {
+  id: string
+  question: string
+  answer: string
+  active: boolean
+}
+
+type DayConfig = {
+  key:
+    | 'monday'
+    | 'tuesday'
+    | 'wednesday'
+    | 'thursday'
+    | 'friday'
+    | 'saturday'
+    | 'sunday'
+
+  label: string
+}
+
+const API_URL = 'http://localhost:3000'
+
+const DAYS: DayConfig[] = [
+  {
+    key: 'monday',
+    label: 'Segunda-feira',
+  },
+  {
+    key: 'tuesday',
+    label: 'Terça-feira',
+  },
+  {
+    key: 'wednesday',
+    label: 'Quarta-feira',
+  },
+  {
+    key: 'thursday',
+    label: 'Quinta-feira',
+  },
+  {
+    key: 'friday',
+    label: 'Sexta-feira',
+  },
+  {
+    key: 'saturday',
+    label: 'Sábado',
+  },
+  {
+    key: 'sunday',
+    label: 'Domingo',
+  },
+]
+
 function Configuracoes() {
-  const [faqs, setFaqs] = useState<FAQ[]>([])
-  const [loading, setLoading] = useState(true)
+  // ==================================================
+  // CLÍNICA
+  // ==================================================
 
-  const [showForm, setShowForm] = useState(false)
-  const [question, setQuestion] = useState('')
-  const [answer, setAnswer] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const [settings, setSettings] =
+  const [clinicSettings, setClinicSettings] =
     useState<ClinicSettings | null>(null)
 
-  const [settingsLoading, setSettingsLoading] =
+  const [loadingClinic, setLoadingClinic] =
     useState(true)
 
-  const [settingsSaving, setSettingsSaving] =
+  const [savingClinic, setSavingClinic] =
     useState(false)
 
-  const [editingFAQ, setEditingFAQ] =
-    useState<FAQ | null>(null)
+  const [clinicMessage, setClinicMessage] =
+    useState('')
 
-  const loadFaqs = async () => {
+  // ==================================================
+  // BOT
+  // ==================================================
+
+  const [botSettings, setBotSettings] =
+    useState<BotSettings | null>(null)
+
+  const [botOptions, setBotOptions] =
+    useState<BotMenuOption[]>([])
+
+  const [loadingBot, setLoadingBot] =
+    useState(true)
+
+  const [savingBot, setSavingBot] =
+    useState(false)
+
+  const [botMessage, setBotMessage] =
+    useState('')
+
+  // ==================================================
+  // FAQ
+  // ==================================================
+
+  const [faqs, setFaqs] = useState<FAQ[]>([])
+
+  const [loadingFaqs, setLoadingFaqs] =
+    useState(true)
+
+  const [faqQuestion, setFaqQuestion] =
+    useState('')
+
+  const [faqAnswer, setFaqAnswer] =
+    useState('')
+
+  const [savingFaq, setSavingFaq] =
+    useState(false)
+
+  const [editingFaqId, setEditingFaqId] =
+    useState<string | null>(null)
+
+  const [editingQuestion, setEditingQuestion] =
+    useState('')
+
+  const [editingAnswer, setEditingAnswer] =
+    useState('')
+
+  // ==================================================
+  // CARREGAMENTO
+  // ==================================================
+
+  useEffect(() => {
+    loadClinicSettings()
+    loadBotSettings()
+    loadFaqs()
+  }, [])
+
+  async function loadClinicSettings() {
     try {
+      setLoadingClinic(true)
+
       const response = await fetch(
-        'http://localhost:3000/faqs'
+        `${API_URL}/settings/clinic`
       )
 
       if (!response.ok) {
-        throw new Error('Erro ao buscar FAQs')
+        throw new Error(
+          'Erro ao carregar configurações da clínica'
+        )
+      }
+
+      const data =
+        (await response.json()) as ClinicSettings
+
+      setClinicSettings(data)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoadingClinic(false)
+    }
+  }
+
+  async function loadBotSettings() {
+    try {
+      setLoadingBot(true)
+
+      const response = await fetch(
+        `${API_URL}/settings/bot`
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          'Erro ao carregar configurações do bot'
+        )
       }
 
       const data = await response.json()
+
+      setBotSettings(data.settings)
+      setBotOptions(data.options ?? [])
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoadingBot(false)
+    }
+  }
+
+  async function loadFaqs() {
+    try {
+      setLoadingFaqs(true)
+
+      const response = await fetch(
+        `${API_URL}/faqs`
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          'Erro ao carregar FAQs'
+        )
+      }
+
+      const data =
+        (await response.json()) as FAQ[]
 
       setFaqs(data)
     } catch (error) {
       console.error(error)
     } finally {
-      setLoading(false)
+      setLoadingFaqs(false)
     }
   }
 
-  const loadSettings = async () => {
-    try {
-      const response = await fetch(
-        'http://localhost:3000/settings/clinic'
-      )
+  // ==================================================
+  // CLÍNICA
+  // ==================================================
 
-      if (!response.ok) {
-        throw new Error(
-          'Erro ao buscar configurações'
-        )
+  function updateClinicSetting(
+    field: keyof ClinicSettings,
+    value: boolean | string | number
+  ) {
+    setClinicSettings((current) => {
+      if (!current) {
+        return current
       }
 
-      const data = await response.json()
-
-      setSettings(data)
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setSettingsLoading(false)
-    }
+      return {
+        ...current,
+        [field]: value,
+      }
+    })
   }
 
-  const saveSettings = async () => {
-    if (!settings) {
+  async function saveClinicSettings() {
+    if (!clinicSettings) {
       return
     }
 
-    setSettingsSaving(true)
-
     try {
+      setSavingClinic(true)
+      setClinicMessage('')
+
+      const {
+        id,
+        ...settings
+      } = clinicSettings
+
       const response = await fetch(
-        'http://localhost:3000/settings/clinic',
+        `${API_URL}/settings/clinic`,
         {
           method: 'PATCH',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
-          body: JSON.stringify({
-            monday_enabled:
-              settings.monday_enabled,
-            monday_start:
-              settings.monday_start,
-            monday_end:
-              settings.monday_end,
-
-            tuesday_enabled:
-              settings.tuesday_enabled,
-            tuesday_start:
-              settings.tuesday_start,
-            tuesday_end:
-              settings.tuesday_end,
-
-            wednesday_enabled:
-              settings.wednesday_enabled,
-            wednesday_start:
-              settings.wednesday_start,
-            wednesday_end:
-              settings.wednesday_end,
-
-            thursday_enabled:
-              settings.thursday_enabled,
-            thursday_start:
-              settings.thursday_start,
-            thursday_end:
-              settings.thursday_end,
-
-            friday_enabled:
-              settings.friday_enabled,
-            friday_start:
-              settings.friday_start,
-            friday_end:
-              settings.friday_end,
-
-            saturday_enabled:
-              settings.saturday_enabled,
-            saturday_start:
-              settings.saturday_start,
-            saturday_end:
-              settings.saturday_end,
-
-            sunday_enabled:
-              settings.sunday_enabled,
-            sunday_start:
-              settings.sunday_start,
-            sunday_end:
-              settings.sunday_end,
-
-            lunch_enabled:
-              settings.lunch_enabled,
-            lunch_start:
-              settings.lunch_start,
-            lunch_end:
-              settings.lunch_end,
-
-            appointment_duration:
-              settings.appointment_duration,
-          }),
+          body: JSON.stringify(settings),
         }
       )
 
       if (!response.ok) {
+        const data =
+          await response.json().catch(
+            () => null
+          )
+
         throw new Error(
-          'Erro ao salvar configurações'
+          data?.error ||
+            'Erro ao salvar configurações'
         )
       }
 
-      const data = await response.json()
+      const updated =
+        (await response.json()) as ClinicSettings
 
-      setSettings(data)
-
-      alert(
-        'Horários de atendimento salvos com sucesso!'
+      setClinicSettings(updated)
+      setClinicMessage(
+        'Configurações da clínica salvas com sucesso.'
       )
     } catch (error) {
       console.error(error)
 
-      alert(
-        'Não foi possível salvar os horários.'
+      setClinicMessage(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao salvar configurações.'
       )
     } finally {
-      setSettingsSaving(false)
+      setSavingClinic(false)
     }
   }
 
-  useEffect(() => {
-    loadFaqs()
-    loadSettings()
-  }, [])
+  // ==================================================
+  // BOT
+  // ==================================================
 
-  // Criar FAQ
-  const handleSubmit = async (
-    event: React.FormEvent
-  ) => {
-    event.preventDefault()
+  function updateBotSetting(
+    field: keyof BotSettings,
+    value: string
+  ) {
+    setBotSettings((current) => {
+      if (!current) {
+        return current
+      }
 
-    if (!question.trim() || !answer.trim()) {
+      return {
+        ...current,
+        [field]: value,
+      }
+    })
+  }
+
+  async function saveBotSettings() {
+    if (!botSettings) {
       return
     }
 
-    setSaving(true)
-
     try {
+      setSavingBot(true)
+      setBotMessage('')
+
       const response = await fetch(
-        'http://localhost:3000/faqs',
+        `${API_URL}/settings/bot`,
         {
-          method: 'POST',
+          method: 'PATCH',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify({
-            question,
-            answer,
+            welcome_message:
+              botSettings.welcome_message,
+            menu_instruction:
+              botSettings.menu_instruction,
           }),
         }
       )
 
-      if (response.status === 409) {
-        alert(
-          'Já existe uma resposta cadastrada para essa pergunta.'
-        )
-        return
-      }
-
       if (!response.ok) {
+        const data =
+          await response.json().catch(
+            () => null
+          )
+
         throw new Error(
-          'Erro ao cadastrar FAQ'
+          data?.error ||
+            'Erro ao salvar configurações do bot'
         )
       }
 
-      setQuestion('')
-      setAnswer('')
-      setShowForm(false)
+      const updated =
+        (await response.json()) as BotSettings
 
-      await loadFaqs()
+      setBotSettings(updated)
+
+      setBotMessage(
+        'Configurações do bot salvas com sucesso.'
+      )
     } catch (error) {
       console.error(error)
+
+      setBotMessage(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao salvar configurações do bot.'
+      )
     } finally {
-      setSaving(false)
+      setSavingBot(false)
     }
   }
 
-  // Editar FAQ
-  const handleEdit = async (
-    event: React.FormEvent
-  ) => {
-    event.preventDefault()
+  function updateBotOption(
+    id: string,
+    field:
+      | 'title'
+      | 'response'
+      | 'active',
+    value: string | boolean
+  ) {
+    setBotOptions((current) =>
+      current.map((option) =>
+        option.id === id
+          ? {
+              ...option,
+              [field]: value,
+            }
+          : option
+      )
+    )
+  }
 
+  async function saveBotOption(
+    option: BotMenuOption
+  ) {
+    try {
+      setBotMessage('')
+
+      const response = await fetch(
+        `${API_URL}/settings/bot/options/${option.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            title: option.title,
+            response: option.response,
+            active: option.active,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        const data =
+          await response.json().catch(
+            () => null
+          )
+
+        throw new Error(
+          data?.error ||
+            'Erro ao salvar opção'
+        )
+      }
+
+      const updated =
+        (await response.json()) as BotMenuOption
+
+      setBotOptions((current) =>
+        current.map((item) =>
+          item.id === updated.id
+            ? updated
+            : item
+        )
+      )
+
+      setBotMessage(
+        `Opção ${option.option_number} salva com sucesso.`
+      )
+    } catch (error) {
+      console.error(error)
+
+      setBotMessage(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao salvar opção.'
+      )
+    }
+  }
+
+  // ==================================================
+  // FAQ
+  // ==================================================
+
+  async function createFaq() {
     if (
-      !editingFAQ ||
-      !editingFAQ.question.trim() ||
-      !editingFAQ.answer.trim()
+      !faqQuestion.trim() ||
+      !faqAnswer.trim()
     ) {
       return
     }
 
-    setSaving(true)
-
     try {
+      setSavingFaq(true)
+
       const response = await fetch(
-        `http://localhost:3000/faqs/${editingFAQ.id}`,
+        `${API_URL}/faqs`,
         {
-          method: 'PATCH',
+          method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify({
             question:
-              editingFAQ.question.trim(),
+              faqQuestion.trim(),
             answer:
-              editingFAQ.answer.trim(),
+              faqAnswer.trim(),
           }),
         }
       )
 
+      const data =
+        await response.json().catch(
+          () => null
+        )
+
       if (!response.ok) {
         throw new Error(
-          'Erro ao editar FAQ'
+          data?.error ||
+            'Erro ao criar FAQ'
         )
       }
 
-      setEditingFAQ(null)
+      setFaqs((current) => [
+        data,
+        ...current,
+      ])
 
-      await loadFaqs()
+      setFaqQuestion('')
+      setFaqAnswer('')
     } catch (error) {
       console.error(error)
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao criar FAQ.'
+      )
     } finally {
-      setSaving(false)
+      setSavingFaq(false)
     }
   }
 
-  // Ativar / desativar FAQ
-  const toggleFAQ = async (faq: FAQ) => {
+  function startEditingFaq(faq: FAQ) {
+    setEditingFaqId(faq.id)
+    setEditingQuestion(faq.question)
+    setEditingAnswer(faq.answer)
+  }
+
+  function cancelEditingFaq() {
+    setEditingFaqId(null)
+    setEditingQuestion('')
+    setEditingAnswer('')
+  }
+
+  async function saveFaq(faq: FAQ) {
+    if (
+      !editingQuestion.trim() ||
+      !editingAnswer.trim()
+    ) {
+      return
+    }
+
     try {
       const response = await fetch(
-        `http://localhost:3000/faqs/${faq.id}`,
+        `${API_URL}/faqs/${faq.id}`,
         {
           method: 'PATCH',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            question:
+              editingQuestion.trim(),
+            answer:
+              editingAnswer.trim(),
+          }),
+        }
+      )
+
+      const data =
+        await response.json().catch(
+          () => null
+        )
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            'Erro ao atualizar FAQ'
+        )
+      }
+
+      setFaqs((current) =>
+        current.map((item) =>
+          item.id === faq.id
+            ? data
+            : item
+        )
+      )
+
+      cancelEditingFaq()
+    } catch (error) {
+      console.error(error)
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao atualizar FAQ.'
+      )
+    }
+  }
+
+  async function toggleFaq(faq: FAQ) {
+    try {
+      const response = await fetch(
+        `${API_URL}/faqs/${faq.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify({
             active: !faq.active,
@@ -336,22 +640,41 @@ function Configuracoes() {
         }
       )
 
+      const data =
+        await response.json().catch(
+          () => null
+        )
+
       if (!response.ok) {
         throw new Error(
-          'Erro ao alterar FAQ'
+          data?.error ||
+            'Erro ao alterar FAQ'
         )
       }
 
-      await loadFaqs()
+      setFaqs((current) =>
+        current.map((item) =>
+          item.id === faq.id
+            ? data
+            : item
+        )
+      )
     } catch (error) {
       console.error(error)
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao alterar FAQ.'
+      )
     }
   }
 
-  // Excluir FAQ
-  const deleteFAQ = async (id: string) => {
+  async function deleteFaq(
+    faqId: string
+  ) {
     const confirmed = window.confirm(
-      'Tem certeza que deseja excluir esta resposta automática?'
+      'Deseja realmente excluir esta FAQ?'
     )
 
     if (!confirmed) {
@@ -360,518 +683,746 @@ function Configuracoes() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/faqs/${id}`,
+        `${API_URL}/faqs/${faqId}`,
         {
           method: 'DELETE',
         }
       )
 
       if (!response.ok) {
+        const data =
+          await response.json().catch(
+            () => null
+          )
+
         throw new Error(
-          'Erro ao excluir FAQ'
+          data?.error ||
+            'Erro ao excluir FAQ'
         )
       }
 
-      await loadFaqs()
+      setFaqs((current) =>
+        current.filter(
+          (faq) => faq.id !== faqId
+        )
+      )
     } catch (error) {
       console.error(error)
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao excluir FAQ.'
+      )
     }
   }
 
+  // ==================================================
+  // RENDER
+  // ==================================================
+
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto p-8">
-      {/* Cabeçalho */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
+    <main className="min-w-0 flex-1 overflow-y-auto bg-gray-50">
+      <div className="mx-auto max-w-6xl p-6">
+        {/* CABEÇALHO */}
+
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900">
             Configurações
-          </h2>
-
-          <p className="mt-1 text-gray-500">
-            Configure as respostas automáticas do FisioBot.
-          </p>
-        </div>
-
-        <button
-          onClick={() => {
-            setShowForm(true)
-            setEditingFAQ(null)
-          }}
-          className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
-        >
-          + Nova resposta
-        </button>
-      </div>
-
-      {/* Configurações de horários */}
-      <div className="mt-6 rounded-xl border bg-white p-6">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            Horários de atendimento
-          </h3>
+          </h1>
 
           <p className="mt-1 text-sm text-gray-500">
-            Defina os dias e horários em que a fisioterapeuta estará disponível.
+            Gerencie os horários da clínica,
+            o comportamento do FisioBot e as
+            perguntas frequentes.
           </p>
         </div>
 
-        {settingsLoading ? (
-          <p className="mt-6 text-sm text-gray-500">
-            Carregando configurações...
-          </p>
-        ) : !settings ? (
-          <p className="mt-6 text-sm text-red-500">
-            Não foi possível carregar as configurações.
-          </p>
-        ) : (
-          <div className="mt-6 space-y-4">
-            {[
-              {
-                label: 'Segunda-feira',
-                enabled: 'monday_enabled',
-                start: 'monday_start',
-                end: 'monday_end',
-              },
-              {
-                label: 'Terça-feira',
-                enabled: 'tuesday_enabled',
-                start: 'tuesday_start',
-                end: 'tuesday_end',
-              },
-              {
-                label: 'Quarta-feira',
-                enabled: 'wednesday_enabled',
-                start: 'wednesday_start',
-                end: 'wednesday_end',
-              },
-              {
-                label: 'Quinta-feira',
-                enabled: 'thursday_enabled',
-                start: 'thursday_start',
-                end: 'thursday_end',
-              },
-              {
-                label: 'Sexta-feira',
-                enabled: 'friday_enabled',
-                start: 'friday_start',
-                end: 'friday_end',
-              },
-              {
-                label: 'Sábado',
-                enabled: 'saturday_enabled',
-                start: 'saturday_start',
-                end: 'saturday_end',
-              },
-              {
-                label: 'Domingo',
-                enabled: 'sunday_enabled',
-                start: 'sunday_start',
-                end: 'sunday_end',
-              },
-            ].map((day) => (
-              <div
-                key={day.enabled}
-                className="flex items-center gap-4 rounded-lg border p-4"
-              >
-                <label className="flex w-40 shrink-0 items-center gap-3">
+        {/* ==================================================
+            CONFIGURAÇÕES DA CLÍNICA
+        ================================================== */}
+
+        <section className="mb-8 rounded-xl border bg-white p-6 shadow-sm">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">
+              🏥 Configurações da clínica
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Defina os dias e horários de
+              atendimento e a duração das
+              consultas.
+            </p>
+          </div>
+
+          {loadingClinic ? (
+            <p className="text-sm text-gray-500">
+              Carregando configurações...
+            </p>
+          ) : clinicSettings ? (
+            <>
+              <div className="space-y-3">
+                {DAYS.map((day) => {
+                  const enabled =
+                    clinicSettings[
+                      `${day.key}_enabled` as keyof ClinicSettings
+                    ] as boolean
+
+                  const start =
+                    clinicSettings[
+                      `${day.key}_start` as keyof ClinicSettings
+                    ] as string
+
+                  const end =
+                    clinicSettings[
+                      `${day.key}_end` as keyof ClinicSettings
+                    ] as string
+
+                  return (
+                    <div
+                      key={day.key}
+                      className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <label className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={enabled}
+                          onChange={(event) =>
+                            updateClinicSetting(
+                              `${day.key}_enabled` as keyof ClinicSettings,
+                              event.target.checked
+                            )
+                          }
+                          className="h-4 w-4 rounded"
+                        />
+
+                        <span className="text-sm font-medium text-gray-800">
+                          {day.label}
+                        </span>
+                      </label>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="time"
+                          value={start}
+                          disabled={!enabled}
+                          onChange={(event) =>
+                            updateClinicSetting(
+                              `${day.key}_start` as keyof ClinicSettings,
+                              event.target.value
+                            )
+                          }
+                          className="rounded-lg border px-3 py-2 text-sm disabled:bg-gray-100"
+                        />
+
+                        <span className="text-sm text-gray-400">
+                          até
+                        </span>
+
+                        <input
+                          type="time"
+                          value={end}
+                          disabled={!enabled}
+                          onChange={(event) =>
+                            updateClinicSetting(
+                              `${day.key}_end` as keyof ClinicSettings,
+                              event.target.value
+                            )
+                          }
+                          className="rounded-lg border px-3 py-2 text-sm disabled:bg-gray-100"
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* ALMOÇO */}
+
+              <div className="mt-6 rounded-lg border p-4">
+                <label className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     checked={
-                      settings[
-                        day.enabled as keyof ClinicSettings
-                      ] as boolean
+                      clinicSettings.lunch_enabled
                     }
                     onChange={(event) =>
-                      setSettings({
-                        ...settings,
-                        [day.enabled]:
-                          event.target.checked,
-                      })
+                      updateClinicSetting(
+                        'lunch_enabled',
+                        event.target.checked
+                      )
                     }
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-4 w-4 rounded"
                   />
 
-                  <span className="text-sm font-medium text-gray-700">
-                    {day.label}
+                  <span className="text-sm font-medium text-gray-800">
+                    Intervalo para almoço
                   </span>
                 </label>
 
-                <div className="flex items-center gap-3">
-                  <input
-                    type="time"
-                    value={
-                      settings[
-                        day.start as keyof ClinicSettings
-                      ] as string
-                    }
-                    disabled={
-                      !settings[
-                        day.enabled as keyof ClinicSettings
-                      ]
-                    }
-                    onChange={(event) =>
-                      setSettings({
-                        ...settings,
-                        [day.start]:
-                          event.target.value,
-                      })
-                    }
-                    className="rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
-                  />
+                {clinicSettings.lunch_enabled && (
+                  <div className="mt-4 flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={
+                        clinicSettings.lunch_start
+                      }
+                      onChange={(event) =>
+                        updateClinicSetting(
+                          'lunch_start',
+                          event.target.value
+                        )
+                      }
+                      className="rounded-lg border px-3 py-2 text-sm"
+                    />
 
-                  <span className="text-sm text-gray-400">
-                    até
-                  </span>
+                    <span className="text-sm text-gray-400">
+                      até
+                    </span>
 
-                  <input
-                    type="time"
-                    value={
-                      settings[
-                        day.end as keyof ClinicSettings
-                      ] as string
-                    }
-                    disabled={
-                      !settings[
-                        day.enabled as keyof ClinicSettings
-                      ]
-                    }
-                    onChange={(event) =>
-                      setSettings({
-                        ...settings,
-                        [day.end]:
-                          event.target.value,
-                      })
-                    }
-                    className="rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
-                  />
-                </div>
+                    <input
+                      type="time"
+                      value={
+                        clinicSettings.lunch_end
+                      }
+                      onChange={(event) =>
+                        updateClinicSetting(
+                          'lunch_end',
+                          event.target.value
+                        )
+                      }
+                      className="rounded-lg border px-3 py-2 text-sm"
+                    />
+                  </div>
+                )}
               </div>
-            ))}
 
-            {/* Intervalo */}
-            <div className="mt-6 rounded-lg border p-4">
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={settings.lunch_enabled}
-                  onChange={(event) =>
-                    setSettings({
-                      ...settings,
-                      lunch_enabled:
-                        event.target.checked,
-                    })
+              {/* DURAÇÃO */}
+
+              <div className="mt-6">
+                <label className="mb-2 block text-sm font-medium text-gray-800">
+                  Duração da consulta
+                </label>
+
+                <select
+                  value={
+                    clinicSettings.appointment_duration
                   }
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-
-                <span className="text-sm font-medium text-gray-700">
-                  Intervalo
-                </span>
-              </label>
-
-              <div className="mt-4 flex items-center gap-3">
-                <input
-                  type="time"
-                  value={settings.lunch_start}
-                  disabled={!settings.lunch_enabled}
                   onChange={(event) =>
-                    setSettings({
-                      ...settings,
-                      lunch_start:
-                        event.target.value,
-                    })
+                    updateClinicSetting(
+                      'appointment_duration',
+                      Number(
+                        event.target.value
+                      )
+                    )
                   }
-                  className="rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
-                />
+                  className="rounded-lg border bg-white px-3 py-2 text-sm"
+                >
+                  <option value={30}>
+                    30 minutos
+                  </option>
 
-                <span className="text-sm text-gray-400">
-                  até
+                  <option value={45}>
+                    45 minutos
+                  </option>
+
+                  <option value={60}>
+                    60 minutos
+                  </option>
+
+                  <option value={90}>
+                    90 minutos
+                  </option>
+
+                  <option value={120}>
+                    120 minutos
+                  </option>
+                </select>
+              </div>
+
+              <div className="mt-6 flex items-center justify-between">
+                <span className="text-sm text-green-600">
+                  {clinicMessage}
                 </span>
 
-                <input
-                  type="time"
-                  value={settings.lunch_end}
-                  disabled={!settings.lunch_enabled}
-                  onChange={(event) =>
-                    setSettings({
-                      ...settings,
-                      lunch_end:
-                        event.target.value,
-                    })
+                <button
+                  type="button"
+                  onClick={
+                    saveClinicSettings
                   }
-                  className="rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
-                />
+                  disabled={savingClinic}
+                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingClinic
+                    ? 'Salvando...'
+                    : 'Salvar configurações'}
+                </button>
               </div>
-            </div>
+            </>
+          ) : (
+            <p className="text-sm text-red-600">
+              Não foi possível carregar as
+              configurações da clínica.
+            </p>
+          )}
+        </section>
 
-            {/* Duração */}
-            <div className="mt-6 rounded-lg border p-4">
-              <label className="text-sm font-medium text-gray-700">
-                Duração da consulta
-              </label>
+        {/* ==================================================
+            BOT
+        ================================================== */}
 
-              <select
-                value={settings.appointment_duration}
-                onChange={(event) =>
-                  setSettings({
-                    ...settings,
-                    appointment_duration:
-                      Number(event.target.value),
-                  })
-                }
-                className="mt-2 rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-gray-200"
-              >
-                <option value={30}>
-                  30 minutos
-                </option>
+        <section className="mb-8 rounded-xl border bg-white p-6 shadow-sm">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">
+              🤖 Respostas automáticas
+            </h2>
 
-                <option value={45}>
-                  45 minutos
-                </option>
-
-                <option value={60}>
-                  60 minutos
-                </option>
-
-                <option value={90}>
-                  90 minutos
-                </option>
-
-                <option value={120}>
-                  120 minutos
-                </option>
-              </select>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={saveSettings}
-                disabled={settingsSaving}
-                className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-              >
-                {settingsSaving
-                  ? 'Salvando...'
-                  : 'Salvar horários'}
-              </button>
-            </div>
+            <p className="mt-1 text-sm text-gray-500">
+              Personalize as mensagens enviadas
+              automaticamente pelo FisioBot.
+            </p>
           </div>
-        )}
-      </div>
 
-      {/* Formulário de criação */}
-      {showForm && (
-        <div className="mt-6 rounded-xl border bg-white p-6">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Nova resposta automática
-          </h3>
+          {loadingBot ? (
+            <p className="text-sm text-gray-500">
+              Carregando configurações do bot...
+            </p>
+          ) : botSettings ? (
+            <>
+              {/* MENSAGEM DE BOAS-VINDAS */}
 
-          <form
-            onSubmit={handleSubmit}
-            className="mt-5 space-y-4"
-          >
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Pergunta
-              </label>
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-gray-800">
+                  Mensagem de boas-vindas
+                </label>
 
-              <input
-                type="text"
-                value={question}
-                onChange={(event) =>
-                  setQuestion(event.target.value)
-                }
-                placeholder="Ex.: Qual o valor da consulta?"
-                className="mt-1 w-full rounded-lg border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-gray-200"
-                required
-              />
-            </div>
+                <textarea
+                  value={
+                    botSettings.welcome_message
+                  }
+                  onChange={(event) =>
+                    updateBotSetting(
+                      'welcome_message',
+                      event.target.value
+                    )
+                  }
+                  rows={3}
+                  className="w-full resize-y rounded-lg border px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
 
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Resposta
-              </label>
+                <p className="mt-1 text-xs text-gray-400">
+                  Essa mensagem aparece no
+                  primeiro contato do paciente.
+                </p>
+              </div>
 
-              <textarea
-                value={answer}
-                onChange={(event) =>
-                  setAnswer(event.target.value)
-                }
-                placeholder="Digite a resposta que o bot deverá enviar..."
-                rows={4}
-                className="mt-1 w-full resize-none rounded-lg border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-gray-200"
-                required
-              />
-            </div>
+              {/* INSTRUÇÃO */}
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false)
-                  setQuestion('')
-                  setAnswer('')
-                }}
-                className="rounded-lg border px-4 py-2.5 text-sm font-medium hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
+              <div className="mb-8">
+                <label className="mb-2 block text-sm font-medium text-gray-800">
+                  Instrução do menu
+                </label>
 
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-              >
-                {saving
-                  ? 'Salvando...'
-                  : 'Salvar resposta'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+                <input
+                  type="text"
+                  value={
+                    botSettings.menu_instruction
+                  }
+                  onChange={(event) =>
+                    updateBotSetting(
+                      'menu_instruction',
+                      event.target.value
+                    )
+                  }
+                  className="w-full rounded-lg border px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
 
-      {/* Formulário de edição */}
-      {editingFAQ && (
-        <div className="mt-6 rounded-xl border bg-white p-6">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Editar resposta automática
-          </h3>
+              <div className="mb-8 flex items-center justify-between border-b pb-6">
+                <span className="text-sm text-green-600">
+                  {botMessage}
+                </span>
 
-          <form
-            onSubmit={handleEdit}
-            className="mt-5 space-y-4"
-          >
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Pergunta
-              </label>
+                <button
+                  type="button"
+                  onClick={saveBotSettings}
+                  disabled={savingBot}
+                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingBot
+                    ? 'Salvando...'
+                    : 'Salvar mensagens gerais'}
+                </button>
+              </div>
 
-              <input
-                type="text"
-                value={editingFAQ.question}
-                onChange={(event) =>
-                  setEditingFAQ({
-                    ...editingFAQ,
-                    question:
-                      event.target.value,
-                  })
-                }
-                className="mt-1 w-full rounded-lg border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-gray-200"
-                required
-              />
-            </div>
+              {/* OPÇÕES */}
 
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Resposta
-              </label>
+              <div>
+                <div className="mb-4">
+                  <h3 className="font-semibold text-gray-900">
+                    Opções do menu
+                  </h3>
 
-              <textarea
-                value={editingFAQ.answer}
-                onChange={(event) =>
-                  setEditingFAQ({
-                    ...editingFAQ,
-                    answer:
-                      event.target.value,
-                  })
-                }
-                rows={4}
-                className="mt-1 w-full resize-none rounded-lg border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-gray-200"
-                required
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setEditingFAQ(null)
-                }
-                className="rounded-lg border px-4 py-2.5 text-sm font-medium hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-              >
-                {saving
-                  ? 'Salvando...'
-                  : 'Salvar alterações'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Lista de FAQs */}
-      <div className="mt-6 overflow-hidden rounded-xl border bg-white">
-        {loading ? (
-          <p className="p-6 text-sm text-gray-500">
-            Carregando respostas...
-          </p>
-        ) : faqs.length === 0 ? (
-          <p className="p-6 text-sm text-gray-500">
-            Nenhuma resposta automática cadastrada.
-          </p>
-        ) : (
-          <div className="divide-y">
-            {faqs.map((faq) => (
-              <div
-                key={faq.id}
-                className="flex items-start justify-between gap-6 p-5"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900">
-                    {faq.question}
-                  </p>
-
-                  <p className="mt-2 text-sm leading-6 text-gray-500">
-                    {faq.answer}
+                  <p className="mt-1 text-sm text-gray-500">
+                    Configure o título e a
+                    resposta de cada opção.
                   </p>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingFAQ(faq)
-                      setShowForm(false)
-                    }}
-                    className="rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Editar
-                  </button>
+                <div className="space-y-5">
+                  {botOptions.map(
+                    (option) => (
+                      <div
+                        key={option.id}
+                        className="rounded-xl border p-5"
+                      >
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {option.option_number}️⃣{' '}
+                              {option.title}
+                            </p>
 
-                  <button
-                    onClick={() =>
-                      toggleFAQ(faq)
-                    }
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      faq.active
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
-                    {faq.active
-                      ? 'Ativa'
-                      : 'Desativada'}
-                  </button>
+                            {option.transfer_to_human && (
+                              <p className="mt-1 text-xs text-blue-600">
+                                Esta opção encaminha
+                                a conversa para a
+                                fisioterapeuta.
+                              </p>
+                            )}
+                          </div>
 
-                  <button
-                    onClick={() =>
-                      deleteFAQ(faq.id)
-                    }
-                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                  >
-                    Excluir
-                  </button>
+                          <label className="flex items-center gap-2 text-sm text-gray-600">
+                            <input
+                              type="checkbox"
+                              checked={
+                                option.active
+                              }
+                              onChange={(event) =>
+                                updateBotOption(
+                                  option.id,
+                                  'active',
+                                  event.target
+                                    .checked
+                                )
+                              }
+                              className="h-4 w-4 rounded"
+                            />
+
+                            Ativa
+                          </label>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                            Título da opção
+                          </label>
+
+                          <input
+                            type="text"
+                            value={
+                              option.title
+                            }
+                            onChange={(event) =>
+                              updateBotOption(
+                                option.id,
+                                'title',
+                                event.target
+                                  .value
+                              )
+                            }
+                            className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                            Resposta automática
+                          </label>
+
+                          <textarea
+                            value={
+                              option.response
+                            }
+                            onChange={(event) =>
+                              updateBotOption(
+                                option.id,
+                                'response',
+                                event.target
+                                  .value
+                              )
+                            }
+                            rows={5}
+                            className="w-full resize-y rounded-lg border px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                          />
+                        </div>
+
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              saveBotOption(
+                                option
+                              )
+                            }
+                            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                          >
+                            Salvar opção
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
-            ))}
+            </>
+          ) : (
+            <p className="text-sm text-red-600">
+              Não foi possível carregar as
+              configurações do bot.
+            </p>
+          )}
+        </section>
+
+        {/* ==================================================
+            FAQ
+        ================================================== */}
+
+        <section className="rounded-xl border bg-white p-6 shadow-sm">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">
+              ❓ Perguntas frequentes
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Cadastre perguntas que o FisioBot
+              poderá responder automaticamente.
+            </p>
           </div>
-        )}
+
+          {/* NOVA FAQ */}
+
+          <div className="rounded-xl bg-gray-50 p-5">
+            <h3 className="mb-4 font-medium text-gray-900">
+              Nova pergunta
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Pergunta
+                </label>
+
+                <input
+                  type="text"
+                  value={faqQuestion}
+                  onChange={(event) =>
+                    setFaqQuestion(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Ex.: Vocês atendem convênio?"
+                  className="w-full rounded-lg border bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Resposta
+                </label>
+
+                <textarea
+                  value={faqAnswer}
+                  onChange={(event) =>
+                    setFaqAnswer(
+                      event.target.value
+                    )
+                  }
+                  rows={4}
+                  placeholder="Digite a resposta que o bot deverá enviar..."
+                  className="w-full resize-y rounded-lg border bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={createFaq}
+                  disabled={
+                    savingFaq ||
+                    !faqQuestion.trim() ||
+                    !faqAnswer.trim()
+                  }
+                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingFaq
+                    ? 'Salvando...'
+                    : 'Adicionar FAQ'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* LISTA */}
+
+          <div className="mt-6">
+            {loadingFaqs ? (
+              <p className="text-sm text-gray-500">
+                Carregando FAQs...
+              </p>
+            ) : faqs.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nenhuma FAQ cadastrada.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {faqs.map((faq) => {
+                  const isEditing =
+                    editingFaqId === faq.id
+
+                  return (
+                    <div
+                      key={faq.id}
+                      className="rounded-xl border p-5"
+                    >
+                      {isEditing ? (
+                        <>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                Pergunta
+                              </label>
+
+                              <input
+                                type="text"
+                                value={
+                                  editingQuestion
+                                }
+                                onChange={(event) =>
+                                  setEditingQuestion(
+                                    event.target
+                                      .value
+                                  )
+                                }
+                                className="w-full rounded-lg border px-4 py-3 text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                Resposta
+                              </label>
+
+                              <textarea
+                                value={
+                                  editingAnswer
+                                }
+                                onChange={(event) =>
+                                  setEditingAnswer(
+                                    event.target
+                                      .value
+                                  )
+                                }
+                                rows={4}
+                                className="w-full resize-y rounded-lg border px-4 py-3 text-sm"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={
+                                cancelEditingFaq
+                              }
+                              className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              Cancelar
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                saveFaq(faq)
+                              }
+                              className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                            >
+                              Salvar
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <h3 className="font-medium text-gray-900">
+                                {faq.question}
+                              </h3>
+
+                              <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
+                                {faq.answer}
+                              </p>
+                            </div>
+
+                            <span
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                                faq.active
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-500'
+                              }`}
+                            >
+                              {faq.active
+                                ? 'Ativa'
+                                : 'Inativa'}
+                            </span>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                startEditingFaq(
+                                  faq
+                                )
+                              }
+                              className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleFaq(faq)
+                              }
+                              className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              {faq.active
+                                ? 'Desativar'
+                                : 'Ativar'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                deleteFaq(
+                                  faq.id
+                                )
+                              }
+                              className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </main>
   )
