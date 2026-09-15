@@ -883,6 +883,329 @@ app.patch(
   }
 )
 
+app.get('/dashboard', async () => {
+  const now = new Date()
+
+  const startOfDay = new Date(
+    `${now.toISOString().slice(0, 10)}T00:00:00-03:00`
+  )
+
+  const startOfTomorrow = new Date(
+    startOfDay.getTime() + 24 * 60 * 60 * 1000
+  )
+
+  /*
+   * Conversas que tiveram atividade hoje.
+   */
+  const {
+    count: conversationsToday,
+    error: conversationsTodayError,
+  } = await supabase
+    .from('conversations')
+    .select('*', {
+      count: 'exact',
+      head: true,
+    })
+    .gte(
+      'last_message_at',
+      startOfDay.toISOString()
+    )
+    .lt(
+      'last_message_at',
+      startOfTomorrow.toISOString()
+    )
+
+  if (conversationsTodayError) {
+    throw conversationsTodayError
+  }
+
+  /*
+   * Conversas atualmente sob responsabilidade do bot.
+   */
+  const {
+    count: resolvedByBot,
+    error: resolvedByBotError,
+  } = await supabase
+    .from('conversations')
+    .select('*', {
+      count: 'exact',
+      head: true,
+    })
+    .eq('status', 'bot')
+    .gte(
+      'last_message_at',
+      startOfDay.toISOString()
+    )
+    .lt(
+      'last_message_at',
+      startOfTomorrow.toISOString()
+    )
+
+  if (resolvedByBotError) {
+    throw resolvedByBotError
+  }
+
+  /*
+   * Agendamentos de hoje.
+   */
+  const {
+    count: appointmentsToday,
+    error: appointmentsTodayError,
+  } = await supabase
+    .from('appointments')
+    .select('*', {
+      count: 'exact',
+      head: true,
+    })
+    .in('status', [
+      'scheduled',
+      'confirmed',
+    ])
+    .gte(
+      'start_at',
+      startOfDay.toISOString()
+    )
+    .lt(
+      'start_at',
+      startOfTomorrow.toISOString()
+    )
+
+  if (appointmentsTodayError) {
+    throw appointmentsTodayError
+  }
+
+  /*
+   * Próximos agendamentos.
+   */
+  const {
+    data: upcomingAppointments,
+    error: upcomingAppointmentsError,
+  } = await supabase
+    .from('appointments')
+    .select(`
+      id,
+      start_at,
+      end_at,
+      status,
+      patients (
+        id,
+        name
+      )
+    `)
+    .in('status', [
+      'scheduled',
+      'confirmed',
+    ])
+    .gte(
+      'start_at',
+      now.toISOString()
+    )
+    .order(
+      'start_at',
+      {
+        ascending: true,
+      }
+    )
+    .limit(5)
+
+  if (upcomingAppointmentsError) {
+    throw upcomingAppointmentsError
+  }
+
+  const appointments = (
+    upcomingAppointments ?? []
+  ).map((appointment: any) => {
+    const patient = Array.isArray(
+      appointment.patients
+    )
+      ? appointment.patients[0]
+      : appointment.patients
+
+    return {
+      id: appointment.id,
+      patientName:
+        patient?.name ??
+        'Paciente',
+      startAt:
+        appointment.start_at,
+      endAt:
+        appointment.end_at,
+      status:
+        appointment.status,
+    }
+  })
+
+  /*
+   * Conversas que precisam da atenção
+   * da fisioterapeuta.
+   */
+  const {
+    data: waitingHuman,
+    error: waitingHumanError,
+  } = await supabase
+    .from('conversations')
+    .select(`
+      id,
+      status,
+      last_message_at,
+      patients (
+        id,
+        name
+      ),
+      messages (
+        id,
+        sender_type,
+        content,
+        created_at
+      )
+    `)
+    .eq('status', 'human')
+    .order(
+      'last_message_at',
+      {
+        ascending: false,
+      }
+    )
+    .limit(5)
+
+  if (waitingHumanError) {
+    throw waitingHumanError
+  }
+
+  const humanConversations = (
+    waitingHuman ?? []
+  ).map((conversation: any) => {
+    const messages =
+      conversation.messages ?? []
+
+    const lastMessage =
+      [...messages].sort(
+        (a, b) =>
+          new Date(
+            b.created_at
+          ).getTime() -
+          new Date(
+            a.created_at
+          ).getTime()
+      )[0]
+
+    const patient = Array.isArray(
+      conversation.patients
+    )
+      ? conversation.patients[0]
+      : conversation.patients
+
+    return {
+      id: conversation.id,
+      patientName:
+        patient?.name ??
+        'Paciente',
+      lastMessage:
+        lastMessage?.content ??
+        'Nenhuma mensagem',
+      lastMessageAt:
+        conversation.last_message_at,
+    }
+  })
+
+  /*
+   * Busca as conversas mais recentes.
+   */
+  const {
+    data: recentConversations,
+    error: recentConversationsError,
+  } = await supabase
+    .from('conversations')
+    .select(`
+      id,
+      status,
+      last_message_at,
+      patients (
+        id,
+        name
+      ),
+      messages (
+        id,
+        sender_type,
+        content,
+        created_at
+      )
+    `)
+    .order(
+      'last_message_at',
+      {
+        ascending: false,
+      }
+    )
+    .limit(5)
+
+  if (recentConversationsError) {
+    throw recentConversationsError
+  }
+
+  /*
+   * Organiza as conversas recentes
+   * para o formato que o frontend precisa.
+   */
+  const conversations = (
+    recentConversations ?? []
+  ).map((conversation: any) => {
+    const messages =
+      conversation.messages ?? []
+
+    const lastMessage =
+      [...messages].sort(
+        (a, b) =>
+          new Date(
+            b.created_at
+          ).getTime() -
+          new Date(
+            a.created_at
+          ).getTime()
+      )[0]
+
+    const patient = Array.isArray(
+      conversation.patients
+    )
+      ? conversation.patients[0]
+      : conversation.patients
+
+    return {
+      id: conversation.id,
+      patientName:
+        patient?.name ??
+        'Paciente',
+      lastMessage:
+        lastMessage?.content ??
+        'Nenhuma mensagem',
+      status:
+        conversation.status,
+      lastMessageAt:
+        conversation.last_message_at,
+    }
+  })
+
+  return {
+    conversationsToday:
+      conversationsToday ?? 0,
+
+    resolvedByBot:
+      resolvedByBot ?? 0,
+
+    appointmentsToday:
+      appointmentsToday ?? 0,
+
+    upcomingAppointments:
+      appointments,
+
+    waitingHuman:
+      humanConversations,
+
+    recentConversations:
+      conversations,
+  }
+})
+
 
 // ======================================================
 // APPOINTMENTS

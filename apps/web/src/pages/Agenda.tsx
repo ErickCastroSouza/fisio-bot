@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 
 type Patient = {
   id: string
@@ -21,6 +22,7 @@ type Appointment = {
 }
 
 function Agenda() {
+
   const [appointments, setAppointments] = useState<
     Appointment[]
   >([])
@@ -30,20 +32,31 @@ function Agenda() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
 
-  const [selectedDate, setSelectedDate] =
-    useState(() => {
-      const today = new Date()
+  const location = useLocation()
 
-      const year = today.getFullYear()
-      const month = String(
-        today.getMonth() + 1
-      ).padStart(2, '0')
-      const day = String(
-        today.getDate()
-      ).padStart(2, '0')
+const [selectedDate, setSelectedDate] =
+  useState(() => {
+    const dateFromDashboard =
+      location.state?.date
 
-      return `${year}-${month}-${day}`
-    })
+    if (dateFromDashboard) {
+      return dateFromDashboard
+    }
+
+    const today = new Date()
+
+    const year = today.getFullYear()
+
+    const month = String(
+      today.getMonth() + 1
+    ).padStart(2, '0')
+
+    const day = String(
+      today.getDate()
+    ).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
+  })
 
   const [patientId, setPatientId] = useState('')
   const [date, setDate] = useState('')
@@ -106,6 +119,16 @@ function Agenda() {
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+  if (location.state?.date) {
+    window.history.replaceState(
+      {},
+      '',
+      window.location.pathname
+    )
+  }
+}, [location.state])
 
   const changeDay = (amount: number) => {
     const [year, month, day] =

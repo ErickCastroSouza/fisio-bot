@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 
 import ConversationList from '../components/ConversationList'
 import ChatWindow from '../components/ChatWindow'
@@ -20,6 +21,11 @@ type Patient = {
 }
 
 function Conversas() {
+  const location = useLocation()
+
+  const conversationId =
+  location.state?.conversationId
+
   const [
     selectedConversation,
     setSelectedConversation,
@@ -152,11 +158,14 @@ function Conversas() {
         </div>
 
         <div className="flex min-h-0 flex-1">
-          <ConversationList
-            onSelectConversation={
-              setSelectedConversation
-            }
-          />
+        <ConversationList
+          onSelectConversation={
+            setSelectedConversation
+          }
+          initialConversationId={
+            conversationId
+          }
+        />
 
           <ChatWindow
             conversation={

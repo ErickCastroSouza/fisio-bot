@@ -17,10 +17,12 @@ type ConversationListProps = {
   onSelectConversation: (
     conversation: Conversation
   ) => void
+  initialConversationId?: string
 }
 
 function ConversationList({
   onSelectConversation,
+  initialConversationId,
 }: ConversationListProps) {
   const [conversations, setConversations] = useState<
     Conversation[]
@@ -36,12 +38,27 @@ function ConversationList({
         )
 
         if (!response.ok) {
-          throw new Error('Erro ao buscar conversas')
+          throw new Error(
+            'Erro ao buscar conversas'
+          )
         }
 
         const data = await response.json()
 
         setConversations(data)
+
+        // Seleciona automaticamente a conversa
+        // enviada pelo Dashboard
+        if (initialConversationId) {
+          const conversation = data.find(
+            (item: Conversation) =>
+              item.id === initialConversationId
+          )
+
+          if (conversation) {
+            onSelectConversation(conversation)
+          }
+        }
       } catch (error) {
         console.error(error)
       } finally {
@@ -50,7 +67,10 @@ function ConversationList({
     }
 
     loadConversations()
-  }, [])
+  }, [
+    initialConversationId,
+    onSelectConversation,
+  ])
 
   return (
     <div className="w-80 border-r bg-white">
