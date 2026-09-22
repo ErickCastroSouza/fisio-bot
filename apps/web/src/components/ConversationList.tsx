@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_URL } from '../config'
 
 type Patient = {
   id: string
@@ -39,7 +40,7 @@ function ConversationList({
     const loadConversations = async () => {
       try {
         const response = await fetch(
-          'http://localhost:3000/conversations'
+          `${API_URL}/conversations`
         )
 
         if (!response.ok) {

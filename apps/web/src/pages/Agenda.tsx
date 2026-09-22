@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { API_URL } from '../config'
 
 type Patient = {
   id: string
@@ -65,7 +66,7 @@ function Agenda() {
   async function loadAppointments() {
     try {
       const response = await fetch(
-        'http://localhost:3000/appointments'
+        `${API_URL}/appointments`
       )
 
       if (!response.ok) {
@@ -85,7 +86,7 @@ function Agenda() {
   async function loadPatients() {
     try {
       const response = await fetch(
-        'http://localhost:3000/patients'
+        `${API_URL}/patients`
       )
 
       if (!response.ok) {
@@ -258,7 +259,7 @@ function Agenda() {
 
     try {
       const response = await fetch(
-        'http://localhost:3000/appointments',
+        `${API_URL}/appointments`,
         {
           method: 'POST',
           headers: {
@@ -319,7 +320,7 @@ function Agenda() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/appointments/${appointment.id}`,
+        `${API_URL}/appointments/${appointment.id}`,
         {
           method: 'PATCH',
           headers: {
@@ -357,7 +358,7 @@ function Agenda() {
   ) {
     try {
       const response = await fetch(
-        `http://localhost:3000/appointments/${appointment.id}`,
+        `${API_URL}/appointments/${appointment.id}`,
         {
           method: 'PATCH',
           headers: {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_URL } from '../config'
 
 type ClinicSettings = {
   id: string
@@ -72,8 +73,6 @@ type DayConfig = {
 
   label: string
 }
-
-const API_URL = 'http://localhost:3000'
 
 const DAYS: DayConfig[] = [
   {

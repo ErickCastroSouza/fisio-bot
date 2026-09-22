@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_URL } from '../config'
 
 type Patient = {
   id: string
@@ -23,7 +24,7 @@ function Pacientes() {
   async function loadPatients() {
     try {
       const response = await fetch(
-        'http://localhost:3000/patients'
+        `${API_URL}/patients`
       )
 
       if (!response.ok) {
@@ -59,7 +60,7 @@ function Pacientes() {
 
     try {
       const response = await fetch(
-        'http://localhost:3000/patients',
+        `${API_URL}/patients`,
         {
           method: 'POST',
           headers: {

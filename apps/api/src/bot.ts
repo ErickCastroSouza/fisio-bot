@@ -218,7 +218,7 @@ async function getAvailableTimes(
   date: string
 ) {
   const response = await fetch(
-    `http://localhost:3000/appointments/available?date=${date}`
+    `${process.env.API_URL || 'http://localhost:3000'}/appointments/available?date=${date}`
   )
 
   if (!response.ok) {

@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom'
 import ConversationList from '../components/ConversationList'
 import ChatWindow from '../components/ChatWindow'
 import PatientInfo from '../components/PatientInfo'
+import { API_URL } from '../config'
 
 type SelectedConversation = {
   id: string
@@ -65,7 +66,7 @@ function Conversas() {
   async function loadPatients() {
     try {
       const response = await fetch(
-        'http://localhost:3000/patients'
+        `${API_URL}/patients`
       )
 
       if (!response.ok) {
@@ -91,7 +92,7 @@ function Conversas() {
       setLoading(true)
 
       const response = await fetch(
-        'http://localhost:3000/conversations',
+        `${API_URL}/conversations`,
         {
           method: 'POST',
           headers: {

@@ -3,6 +3,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { API_URL } from '../config'
 
 type Patient = {
   id: string
@@ -77,7 +78,7 @@ function ChatWindow({
       setLoading(true)
 
       const response = await fetch(
-        `http://localhost:3000/conversations/${conversation.id}/messages`
+        `${API_URL}/conversations/${conversation.id}/messages`
       )
 
       if (!response.ok) {
@@ -121,7 +122,7 @@ async function handleSend() {
     setSending(true)
 
     const response = await fetch(
-      `http://localhost:3000/conversations/${conversation.id}/bot`,
+      `${API_URL}/conversations/${conversation.id}/bot`,
       {
         method: 'POST',
         headers: {
