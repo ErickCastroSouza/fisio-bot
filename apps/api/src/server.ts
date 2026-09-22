@@ -2290,7 +2290,4 @@ const start = async () => {
     process.exit(1)
   }
 }
-
-if (!process.env.VERCEL) {
   start()
-}
