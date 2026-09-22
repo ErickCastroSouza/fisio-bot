@@ -16,3 +16,4 @@ build/
 # Sistema/editor
 .DS_Store
 .vscode/
+.vercel
