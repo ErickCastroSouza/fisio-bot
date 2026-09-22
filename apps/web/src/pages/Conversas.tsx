@@ -24,12 +24,14 @@ function Conversas() {
   const location = useLocation()
 
   const conversationId =
-  location.state?.conversationId
+    location.state?.conversationId
 
   const [
     selectedConversation,
     setSelectedConversation,
-  ] = useState<SelectedConversation | null>(null)
+  ] = useState<SelectedConversation | null>(
+    null
+  )
 
   const [patients, setPatients] = useState<
     Patient[]
@@ -41,11 +43,24 @@ function Conversas() {
   const [selectedPatientId, setSelectedPatientId] =
     useState('')
 
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] =
+    useState(false)
+
+  const [showMobileList, setShowMobileList] =
+    useState(true)
+
+  const [showMobilePatientInfo, setShowMobilePatientInfo] =
+    useState(false)
 
   useEffect(() => {
     loadPatients()
   }, [])
+
+  useEffect(() => {
+    if (conversationId) {
+      setShowMobileList(false)
+    }
+  }, [conversationId])
 
   async function loadPatients() {
     try {
@@ -121,8 +136,10 @@ function Conversas() {
 
       setShowNewConversation(false)
       setSelectedPatientId('')
+      setShowMobileList(false)
     } catch (error) {
       console.error(error)
+
       alert(
         'Não foi possível criar a conversa.'
       )
@@ -131,120 +148,222 @@ function Conversas() {
     }
   }
 
+  function handleBackToList() {
+    setShowMobilePatientInfo(false)
+    setShowMobileList(true)
+  }
+
+  function handleSelectConversation(
+    conversation: SelectedConversation
+  ) {
+    setSelectedConversation(conversation)
+    setShowMobileList(false)
+    setShowMobilePatientInfo(false)
+  }
+
   return (
-    <main className="flex min-w-0 flex-1">
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Cabeçalho */}
-        <div className="flex items-center justify-between border-b bg-white px-6 py-4">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">
-              Conversas
-            </h1>
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-[#f8f7f9]">
+      {/* Cabeçalho da página */}
+      <header className="flex shrink-0 items-center justify-between border-b border-[#e8e3ec] bg-white px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8b7aa3]">
+            Atendimento
+          </p>
 
-            <p className="text-sm text-gray-500">
-              Atendimento e mensagens
-            </p>
-          </div>
+          <h1 className="mt-1 text-xl font-bold tracking-tight text-[#3f3a43] sm:text-2xl">
+            Conversas
+          </h1>
 
-          <button
-            type="button"
-            onClick={() =>
-              setShowNewConversation(true)
-            }
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            + Nova conversa
-          </button>
+          <p className="mt-1 hidden text-sm text-[#85808b] sm:block">
+            Gerencie as conversas e acompanhe
+            seus pacientes.
+          </p>
         </div>
 
-        <div className="flex min-h-0 flex-1">
-        <ConversationList
-          onSelectConversation={
-            setSelectedConversation
+        <button
+          type="button"
+          onClick={() =>
+            setShowNewConversation(true)
           }
-          initialConversationId={
-            conversationId
-          }
-        />
+          className="flex items-center gap-2 rounded-xl bg-[#644498] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#553987] hover:shadow-md active:scale-[0.98] sm:px-4"
+        >
+          <span className="text-lg leading-none">
+            +
+          </span>
 
-          <ChatWindow
-            conversation={
-              selectedConversation
-            }
-          />
+          <span className="hidden sm:inline">
+            Nova conversa
+          </span>
 
-          <PatientInfo
-            patient={
-              selectedConversation?.patient ??
-              null
-            }
-          />
+          <span className="sm:hidden">
+            Nova
+          </span>
+        </button>
+      </header>
+
+      {/* Área das conversas */}
+      <div className="min-h-0 flex-1 overflow-hidden p-2 sm:p-4 lg:p-5">
+        <div className="flex h-full min-h-0 overflow-hidden rounded-2xl border border-[#e8e3ec] bg-white shadow-[0_3px_15px_rgba(77,52,121,0.05)]">
+          {/* Lista de conversas */}
+          <div
+            className={`h-full min-h-0 w-full shrink-0 lg:flex lg:w-80 ${
+              showMobileList
+                ? 'flex'
+                : 'hidden'
+            }`}
+          >
+            <ConversationList
+              onSelectConversation={
+                handleSelectConversation
+              }
+              initialConversationId={
+                conversationId
+              }
+            />
+          </div>
+
+          {/* Chat */}
+          <div
+            className={`h-full min-h-0 min-w-0 flex-1 ${
+              showMobileList
+                ? 'hidden lg:flex'
+                : 'flex'
+            }`}
+          >
+            <ChatWindow
+              conversation={
+                selectedConversation
+              }
+              onBack={
+                handleBackToList
+              }
+              onPatientInfo={() =>
+                setShowMobilePatientInfo(
+                  true
+                )
+              }
+            />
+          </div>
+
+          {/* Informações do paciente */}
+          <div
+            className={`h-full min-h-0 w-72 shrink-0 xl:flex ${
+              showMobilePatientInfo
+                ? 'fixed inset-0 z-50 flex w-full bg-[#2d2438]/30 p-4 backdrop-blur-sm xl:static xl:w-72 xl:bg-transparent xl:p-0 xl:backdrop-blur-none'
+                : 'hidden'
+            }`}
+          >
+            <div
+              className={`h-full w-full overflow-hidden bg-white xl:block ${
+                showMobilePatientInfo
+                  ? 'rounded-2xl xl:rounded-none'
+                  : ''
+              }`}
+            >
+              <PatientInfo
+                patient={
+                  selectedConversation?.patient ??
+                  null
+                }
+              />
+
+              {showMobilePatientInfo && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowMobilePatientInfo(
+                      false
+                    )
+                  }
+                  className="absolute right-6 top-6 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-[#625d66] shadow-sm xl:hidden"
+                  aria-label="Fechar informações"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Modal nova conversa */}
       {showNewConversation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <div className="mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Nova conversa
-              </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2d2438]/30 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[#e8e3ec] bg-white shadow-2xl">
+            <div className="border-b border-[#eeeaf0] px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eee9f5] text-[#644498]">
+                  +
+                </div>
 
-              <p className="mt-1 text-sm text-gray-500">
-                Selecione o paciente para
-                iniciar uma conversa.
-              </p>
+                <div>
+                  <h2 className="font-semibold text-[#3f3a43]">
+                    Nova conversa
+                  </h2>
+
+                  <p className="mt-0.5 text-xs text-[#918b96]">
+                    Inicie um novo atendimento.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Paciente
-            </label>
+            <div className="px-6 py-6">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#716a76]">
+                Paciente
+              </label>
 
-            <select
-              value={selectedPatientId}
-              onChange={(event) =>
-                setSelectedPatientId(
-                  event.target.value
-                )
-              }
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="">
-                Selecione um paciente
-              </option>
-
-              {patients.map((patient) => (
-                <option
-                  key={patient.id}
-                  value={patient.id}
-                >
-                  {patient.name} —{' '}
-                  {patient.phone}
+              <select
+                value={selectedPatientId}
+                onChange={(event) =>
+                  setSelectedPatientId(
+                    event.target.value
+                  )
+                }
+                className="w-full rounded-xl border border-[#ddd7e1] bg-[#fcfbfd] px-4 py-3 text-sm text-[#454049] outline-none transition focus:border-[#8b6ab3] focus:ring-4 focus:ring-[#644498]/10"
+              >
+                <option value="">
+                  Selecione um paciente
                 </option>
-              ))}
-            </select>
 
-            <div className="mt-6 flex justify-end gap-3">
+                {patients.map(
+                  (patient) => (
+                    <option
+                      key={patient.id}
+                      value={patient.id}
+                    >
+                      {patient.name} —{' '}
+                      {patient.phone}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-[#eeeaf0] bg-[#fcfbfd] px-6 py-4">
               <button
                 type="button"
                 onClick={() => {
-                  setShowNewConversation(false)
+                  setShowNewConversation(
+                    false
+                  )
                   setSelectedPatientId('')
                 }}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-xl border border-[#ddd7e1] bg-white px-4 py-2.5 text-sm font-medium text-[#625d66] transition hover:bg-[#f6f4f7]"
               >
                 Cancelar
               </button>
 
               <button
                 type="button"
-                onClick={createConversation}
+                onClick={
+                  createConversation
+                }
                 disabled={
                   !selectedPatientId ||
                   loading
                 }
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-xl bg-[#644498] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#553987] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading
                   ? 'Criando...'
@@ -254,7 +373,7 @@ function Conversas() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   )
 }
 
