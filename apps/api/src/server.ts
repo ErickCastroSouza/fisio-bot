@@ -2283,13 +2283,15 @@ app.patch(
 
 const start = async () => {
   try {
+    const port = Number(process.env.PORT) || 3000
+
     await app.listen({
-      port: 3000,
+      port,
       host: '0.0.0.0',
     })
 
     console.log(
-      'Servidor rodando em http://localhost:3000'
+      `Servidor rodando na porta ${port}`
     )
   } catch (error) {
     app.log.error(error)
@@ -2297,7 +2299,5 @@ const start = async () => {
     process.exit(1)
   }
 }
-  start()
 
-
-export default app
+start()
