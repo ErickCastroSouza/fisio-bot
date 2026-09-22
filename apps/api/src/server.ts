@@ -14,12 +14,19 @@ export const app = Fastify({
   logger: true,
 })
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+]
+
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(
+    process.env.FRONTEND_URL
+  )
+}
+
 app.register(cors, {
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    process.env.FRONTEND_URL,
-  ].filter(Boolean),
+  origin: allowedOrigins,
 
   methods: [
     'GET',
