@@ -2283,7 +2283,6 @@ export default app
 // START SERVER
 // ======================================================
 
-/*
 const start = async () => {
   try {
     const port = Number(process.env.PORT) || 3000
@@ -2304,5 +2303,3 @@ const start = async () => {
 }
 
 start()
-
-*/
